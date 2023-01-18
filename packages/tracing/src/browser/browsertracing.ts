@@ -16,6 +16,8 @@ import { WINDOW } from './types';
 
 export const BROWSER_TRACING_INTEGRATION_ID = 'BrowserTracing';
 
+const INTERACTION_TYPES = ['click'] as const;
+
 /** Options for Browser Tracing integration */
 export interface BrowserTracingOptions extends RequestInstrumentationOptions {
   /**
@@ -306,10 +308,11 @@ export class BrowserTracing implements Integration {
   /** Start listener for interaction transactions */
   private _registerInteractionListener(): void {
     let inflightInteractionTransaction: IdleTransaction | undefined;
-    const registerInteractionTransaction = (): void => {
+
+    const registerInteractionTransaction = (type: typeof INTERACTION_TYPES[number]) => (): void => {
       const { idleTimeout, finalTimeout, heartbeatInterval } = this.options;
 
-      const op = 'ui.action.click';
+      const op = `ui.action.${type}`;
       if (inflightInteractionTransaction) {
         inflightInteractionTransaction.finish();
         inflightInteractionTransaction = undefined;
@@ -330,7 +333,7 @@ export class BrowserTracing implements Integration {
       const { location } = WINDOW;
 
       const context: TransactionContext = {
-        name: this._latestRouteName,
+        name: `${this._latestRouteName} ${type}`,
         op,
         trimEnd: true,
         metadata: {
@@ -349,8 +352,8 @@ export class BrowserTracing implements Integration {
       );
     };
 
-    ['click'].forEach(type => {
-      addEventListener(type, registerInteractionTransaction, { once: false, capture: true });
+    INTERACTION_TYPES.forEach(type => {
+      addEventListener(type, registerInteractionTransaction(type), { once: false, capture: true });
     });
   }
 }
