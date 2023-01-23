@@ -12,7 +12,7 @@ export class EventBufferCompressionWorker implements EventBuffer {
    * For example, page is reloaded and a flush attempt is made, but
    * `finish()` (and thus the flush), does not complete.
    */
-  public _pendingEvents: RecordingEvent[] = [];
+  public _pendingEvents: RecordingEvent[];
 
   private _worker: Worker;
   private _eventBufferItemLength: number = 0;
@@ -20,6 +20,7 @@ export class EventBufferCompressionWorker implements EventBuffer {
 
   public constructor(worker: Worker) {
     this._worker = worker;
+    this._pendingEvents = [];
   }
 
   /**
@@ -85,7 +86,11 @@ export class EventBufferCompressionWorker implements EventBuffer {
   }
 
   /** @inheritdoc */
-  public clear(): Promise<void> {
+  public clear(untilPos?: number): Promise<void> {
+    this._clear(untilPos);
+
+    // TODO FN: Clear up to pos
+
     // This will clear the queue of events that are waiting to be compressed
     return this._postMessage({
       id: this._getAndIncrementId(),
@@ -98,7 +103,20 @@ export class EventBufferCompressionWorker implements EventBuffer {
    * Finish the event buffer and return the compressed data.
    */
   public finish(): Promise<Uint8Array> {
+    this._clear();
+
     return this._finishRequest(this._getAndIncrementId());
+  }
+
+  /**
+   * Clear all pending events up to the given event pos.
+   */
+  private _clear(untilPos?: number): void {
+    if (untilPos) {
+      this._pendingEvents.splice(0, untilPos);
+    } else {
+      this._pendingEvents = [];
+    }
   }
 
   /**

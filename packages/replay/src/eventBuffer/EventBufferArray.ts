@@ -26,7 +26,7 @@ export class EventBufferArray implements EventBuffer {
 
   /** @inheritdoc */
   public destroy(): void {
-    this._events = [];
+    this._clear();
   }
 
   /** @inheritdoc */
@@ -36,8 +36,8 @@ export class EventBufferArray implements EventBuffer {
   }
 
   /** @inheritdoc */
-  public async clear(): Promise<void> {
-    this._events = [];
+  public async clear(untilPos?: number): Promise<void> {
+    this._clear(untilPos);
   }
 
   /** @inheritdoc */
@@ -47,8 +47,17 @@ export class EventBufferArray implements EventBuffer {
       // events member so that we do not lose new events while uploading
       // attachment.
       const eventsRet = this._events;
-      this._events = [];
       resolve(JSON.stringify(eventsRet));
+      this._clear();
     });
+  }
+
+  /** Clear all events. */
+  private _clear(untilPos?: number): void {
+    if (untilPos) {
+      this._events.splice(0, untilPos);
+    } else {
+      this._events = [];
+    }
   }
 }

@@ -45,8 +45,8 @@ export class EventBufferProxy implements EventBuffer {
   }
 
   /** @inheritdoc */
-  public clear(): Promise<void> {
-    return this._used.clear();
+  public clear(untilPos?: number): Promise<void> {
+    return this._used.clear(untilPos);
   }
 
   /** @inheritDoc */

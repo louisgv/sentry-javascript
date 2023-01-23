@@ -26,7 +26,7 @@ describe('Integration | errorSampleRate', () => {
   beforeEach(async () => {
     ({ mockRecord, domHandler, replay } = await resetSdkMock({
       replayOptions: {
-        stickySession: true,
+        stickySession: false,
       },
       sentryOptions: {
         replaysSessionSampleRate: 0.0,
@@ -321,11 +321,10 @@ describe('Integration | errorSampleRate', () => {
     });
   });
 
-  it('has correct timestamps when error occurs much later than initial pageload/checkout', async () => {
+  it('keeps up to the last two checkout events', async () => {
     const ELAPSED = 60000;
     const TEST_EVENT = { data: {}, timestamp: BASE_TIMESTAMP, type: 3 };
     mockRecord._emitter(TEST_EVENT);
-
     // add a mock performance event
     replay.performanceEvents.push(PerformanceEntryResource());
 
@@ -353,7 +352,7 @@ describe('Integration | errorSampleRate', () => {
 
     expect(replay.session?.started).toBe(BASE_TIMESTAMP + ELAPSED + 20);
 
-    // Does not capture mouse click
+    // Does capture everything from the previous checkout
     expect(replay).toHaveSentReplay({
       recordingPayloadHeader: { segment_id: 0 },
       replayEventPayload: expect.objectContaining({
@@ -361,11 +360,9 @@ describe('Integration | errorSampleRate', () => {
         replay_start_timestamp: (BASE_TIMESTAMP + ELAPSED + 20) / 1000,
       }),
       recordingData: JSON.stringify([
-        {
-          data: { isCheckout: true },
-          timestamp: BASE_TIMESTAMP + ELAPSED + 20,
-          type: 2,
-        },
+        { data: { isCheckout: true }, timestamp: BASE_TIMESTAMP, type: 2 },
+        { data: {}, timestamp: BASE_TIMESTAMP, type: 3 },
+        { data: { isCheckout: true }, timestamp: BASE_TIMESTAMP + ELAPSED + 20, type: 2 },
       ]),
     });
   });

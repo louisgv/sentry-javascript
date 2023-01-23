@@ -9,14 +9,14 @@ export async function addEvent(
   event: RecordingEvent,
   isCheckout?: boolean,
 ): Promise<AddEventResult | null> {
-  const { eventBuffer } = replay;
+  const { eventBuffer, session } = replay;
 
   if (!eventBuffer) {
     // This implies that `_isEnabled` is false
     return null;
   }
 
-  if (replay.isPaused()) {
+  if (replay.isPaused() || !session) {
     // Do not add to event buffer when recording is paused
     return null;
   }
@@ -37,12 +37,24 @@ export async function addEvent(
   // Only record earliest event if a new session was created, otherwise it
   // shouldn't be relevant
   const earliestEvent = replay.getContext().earliestEvent;
-  if (replay.session && replay.session.segmentId === 0 && (!earliestEvent || timestampInMs < earliestEvent)) {
+  if (session.segmentId === 0 && (!earliestEvent || timestampInMs < earliestEvent)) {
     replay.getContext().earliestEvent = timestampInMs;
   }
 
   if (isCheckout) {
-    await eventBuffer.clear();
+    if (replay.recordingMode === 'error') {
+      if (eventBuffer.lastCheckoutEventPos) {
+        await eventBuffer.clear(eventBuffer.lastCheckoutEventPos);
+
+        if (!session.segmentId) {
+          replay.getContext().earliestEvent = eventBuffer.pendingEvents[0].timestamp;
+        }
+      }
+
+      eventBuffer.lastCheckoutEventPos = eventBuffer.pendingLength;
+    } else {
+      await eventBuffer.clear();
+    }
   }
 
   return eventBuffer.addEvent(event);

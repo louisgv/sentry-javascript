@@ -211,6 +211,12 @@ export interface EventBuffer {
   readonly pendingEvents: RecordingEvent[];
 
   /**
+   *  The pos. in pendingEvents of the last checkout event.
+   *  Can be used to only clear part of the queue.
+   */
+  lastCheckoutEventPos?: number;
+
+  /**
    * Destroy the event buffer.
    */
   destroy(): void;
@@ -224,8 +230,9 @@ export interface EventBuffer {
 
   /**
    * Clear any pending events from the buffer.
+   * If `untilPos` is given, only events up to that position will be cleared.
    */
-  clear(): Promise<void>;
+  clear(untilPos?: number): Promise<void>;
 
   /**
    * Clears and returns the contents of the buffer.
