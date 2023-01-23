@@ -30,14 +30,14 @@ export class EventBufferArray implements EventBuffer {
   }
 
   /** @inheritdoc */
-  public async addEvent(event: RecordingEvent, isCheckout?: boolean): Promise<AddEventResult> {
-    if (isCheckout) {
-      this._events = [event];
-      return;
-    }
-
+  public async addEvent(event: RecordingEvent): Promise<AddEventResult> {
     this._events.push(event);
     return;
+  }
+
+  /** @inheritdoc */
+  public async clear(): Promise<void> {
+    this._events = [];
   }
 
   /** @inheritdoc */

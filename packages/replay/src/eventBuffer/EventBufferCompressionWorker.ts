@@ -79,23 +79,19 @@ export class EventBufferCompressionWorker implements EventBuffer {
    *
    * Returns true if event was successfuly received and processed by worker.
    */
-  public async addEvent(event: RecordingEvent, isCheckout?: boolean): Promise<AddEventResult> {
-    if (isCheckout) {
-      // This event is a checkout, make sure worker buffer is cleared before
-      // proceeding.
-      await this._postMessage({
-        id: this._getAndIncrementId(),
-        method: 'init',
-        args: [],
-      });
-    }
-
-    // Don't store checkout events in `_pendingEvents` because they are too large
-    if (!isCheckout) {
-      this._pendingEvents.push(event);
-    }
-
+  public addEvent(event: RecordingEvent): Promise<AddEventResult> {
+    this.pendingEvents.push(event);
     return this._sendEventToWorker(event);
+  }
+
+  /** @inheritdoc */
+  public clear(): Promise<void> {
+    // This will clear the queue of events that are waiting to be compressed
+    return this._postMessage({
+      id: this._getAndIncrementId(),
+      method: 'init',
+      args: [],
+    });
   }
 
   /**

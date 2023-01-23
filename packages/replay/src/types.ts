@@ -220,7 +220,12 @@ export interface EventBuffer {
    *
    * Returns a promise that resolves if the event was successfully added, else rejects.
    */
-  addEvent(event: RecordingEvent, isCheckout?: boolean): Promise<AddEventResult>;
+  addEvent(event: RecordingEvent): Promise<AddEventResult>;
+
+  /**
+   * Clear any pending events from the buffer.
+   */
+  clear(): Promise<void>;
 
   /**
    * Clears and returns the contents of the buffer.

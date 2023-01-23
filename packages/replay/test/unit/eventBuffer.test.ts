@@ -27,7 +27,9 @@ describe('Unit | eventBuffer', () => {
       buffer.addEvent(TEST_EVENT);
       buffer.addEvent(TEST_EVENT);
 
-      buffer.addEvent(TEST_EVENT, true);
+      // Checkout triggers clear
+      buffer.clear();
+      buffer.addEvent(TEST_EVENT);
       const result = await buffer.finish();
 
       expect(result).toEqual(JSON.stringify([TEST_EVENT]));
@@ -85,8 +87,9 @@ describe('Unit | eventBuffer', () => {
       await buffer.addEvent(TEST_EVENT);
       await buffer.addEvent(TEST_EVENT);
 
-      // This should clear previous buffer
-      await buffer.addEvent({ ...TEST_EVENT, type: 2 }, true);
+      // Checkout triggers clear
+      await buffer.clear();
+      await buffer.addEvent({ ...TEST_EVENT, type: 2 });
 
       const result = await buffer.finish();
       expect(result).toBeInstanceOf(Uint8Array);

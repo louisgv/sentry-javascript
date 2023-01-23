@@ -9,7 +9,9 @@ export async function addEvent(
   event: RecordingEvent,
   isCheckout?: boolean,
 ): Promise<AddEventResult | null> {
-  if (!replay.eventBuffer) {
+  const { eventBuffer } = replay;
+
+  if (!eventBuffer) {
     // This implies that `_isEnabled` is false
     return null;
   }
@@ -39,5 +41,9 @@ export async function addEvent(
     replay.getContext().earliestEvent = timestampInMs;
   }
 
-  return replay.eventBuffer.addEvent(event, isCheckout);
+  if (isCheckout) {
+    await eventBuffer.clear();
+  }
+
+  return eventBuffer.addEvent(event);
 }
