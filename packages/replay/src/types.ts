@@ -45,8 +45,6 @@ export interface WorkerResponse {
   response: unknown;
 }
 
-export type AddEventResult = void;
-
 export interface SampleRates {
   /**
    * The sample rate for session-long replays. 1.0 will record all sessions and
@@ -211,12 +209,6 @@ export interface EventBuffer {
   readonly pendingEvents: RecordingEvent[];
 
   /**
-   *  The pos. in pendingEvents of the last checkout event.
-   *  Can be used to only clear part of the queue.
-   */
-  lastCheckoutEventPos?: number;
-
-  /**
    * Destroy the event buffer.
    */
   destroy(): void;
@@ -226,18 +218,21 @@ export interface EventBuffer {
    *
    * Returns a promise that resolves if the event was successfully added, else rejects.
    */
-  addEvent(event: RecordingEvent): Promise<AddEventResult>;
+  addEvent(event: RecordingEvent, isCheckout?: boolean): void;
 
   /**
    * Clear any pending events from the buffer.
-   * If `untilPos` is given, only events up to that position will be cleared.
+   * If `keepLastCheckout` is set, we ensure to keep at all the events since the last checkout.
    */
-  clear(untilPos?: number): Promise<void>;
+  clear(keepLastCheckout?: boolean): void;
 
   /**
    * Clears and returns the contents of the buffer.
    */
   finish(): Promise<ReplayRecordingData>;
+
+  /** Get the timestamp of the first checkout that is pending. */
+  getFirstCheckoutTimestamp(): number | null;
 }
 
 export type AddUpdateCallback = () => boolean | void;

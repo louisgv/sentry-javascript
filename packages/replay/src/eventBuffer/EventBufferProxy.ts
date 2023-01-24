@@ -1,7 +1,7 @@
 import type { ReplayRecordingData } from '@sentry/types';
 import { logger } from '@sentry/utils';
 
-import type { AddEventResult, EventBuffer, RecordingEvent } from '../types';
+import type { EventBuffer, RecordingEvent } from '../types';
 import { EventBufferArray } from './EventBufferArray';
 import { EventBufferCompressionWorker } from './EventBufferCompressionWorker';
 
@@ -40,18 +40,23 @@ export class EventBufferProxy implements EventBuffer {
   }
 
   /** @inheritdoc */
-  public addEvent(event: RecordingEvent): Promise<AddEventResult> {
-    return this._used.addEvent(event);
+  public addEvent(event: RecordingEvent, isCheckout?: boolean): void {
+    return this._used.addEvent(event, isCheckout);
   }
 
   /** @inheritdoc */
-  public clear(untilPos?: number): Promise<void> {
-    return this._used.clear(untilPos);
+  public clear(keepLastCheckout?: boolean): void {
+    return this._used.clear(keepLastCheckout);
   }
 
   /** @inheritDoc */
   public finish(): Promise<ReplayRecordingData> {
     return this._used.finish();
+  }
+
+  /** @inheritdoc */
+  public getFirstCheckoutTimestamp(): number | null {
+    return this._used.getFirstCheckoutTimestamp();
   }
 
   /** Ensure the worker has loaded. */
@@ -67,16 +72,14 @@ export class EventBufferProxy implements EventBuffer {
 
     // Compression worker is ready, we can use it
     // Now we need to switch over the array buffer to the compression worker
-    const addEventPromises: Promise<void>[] = [];
     for (const event of this._fallback.pendingEvents) {
-      addEventPromises.push(this._compression.addEvent(event));
+      this._compression.addEvent(event);
     }
 
     // We switch over to the compression buffer immediately - any further events will be added
     // after the previously buffered ones
     this._used = this._compression;
 
-    // Wait for original events to be re-added before resolving
-    await Promise.all(addEventPromises);
+    this._fallback.clear();
   }
 }

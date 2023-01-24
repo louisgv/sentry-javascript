@@ -1,11 +1,7 @@
-import { addEvent } from '../../../src/util/addEvent';
 import { BASE_TIMESTAMP } from '../..';
-import { ReplayContainer } from '../../../src/replay';
-import { SESSION_IDLE_DURATION } from '../../../src/constants';
-import { createEventBuffer } from '../../../src/eventBuffer';
-import { clearSession } from '../../utils/clearSession';
-import { useFakeTimers } from '../../utils/use-fake-timers';
+import { addEvent } from '../../../src/util/addEvent';
 import { setupReplayContainer } from '../../utils/setupReplayContainer';
+import { useFakeTimers } from '../../utils/use-fake-timers';
 
 useFakeTimers();
 

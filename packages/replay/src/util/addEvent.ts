@@ -1,24 +1,20 @@
 import { SESSION_IDLE_DURATION } from '../constants';
-import type { AddEventResult, RecordingEvent, ReplayContainer } from '../types';
+import type { RecordingEvent, ReplayContainer } from '../types';
 
 /**
  * Add an event to the event buffer
  */
-export async function addEvent(
-  replay: ReplayContainer,
-  event: RecordingEvent,
-  isCheckout?: boolean,
-): Promise<AddEventResult | null> {
+export function addEvent(replay: ReplayContainer, event: RecordingEvent, isCheckout?: boolean): boolean {
   const { eventBuffer, session } = replay;
 
   if (!eventBuffer) {
     // This implies that `_isEnabled` is false
-    return null;
+    return false;
   }
 
   if (replay.isPaused() || !session) {
     // Do not add to event buffer when recording is paused
-    return null;
+    return false;
   }
 
   // TODO: sadness -- we will want to normalize timestamps to be in ms -
@@ -31,7 +27,7 @@ export async function addEvent(
   // comes back to trigger a new session. The performance entries rely on
   // `performance.timeOrigin`, which is when the page first opened.
   if (timestampInMs + SESSION_IDLE_DURATION < new Date().getTime()) {
-    return null;
+    return false;
   }
 
   // Only record earliest event if a new session was created, otherwise it
@@ -43,19 +39,17 @@ export async function addEvent(
 
   if (isCheckout) {
     if (replay.recordingMode === 'error') {
-      if (eventBuffer.lastCheckoutEventPos) {
-        await eventBuffer.clear(eventBuffer.lastCheckoutEventPos);
+      eventBuffer.clear(true);
 
-        if (!session.segmentId) {
-          replay.getContext().earliestEvent = eventBuffer.pendingEvents[0].timestamp;
-        }
+      // Ensure we have the correct first checkout timestamp when an error occurs
+      if (!session.segmentId) {
+        replay.getContext().earliestEvent = eventBuffer.getFirstCheckoutTimestamp();
       }
-
-      eventBuffer.lastCheckoutEventPos = eventBuffer.pendingLength;
     } else {
-      await eventBuffer.clear();
+      eventBuffer.clear();
     }
   }
 
-  return eventBuffer.addEvent(event);
+  eventBuffer.addEvent(event, isCheckout);
+  return true;
 }

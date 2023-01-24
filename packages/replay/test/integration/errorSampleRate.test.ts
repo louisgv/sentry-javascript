@@ -1,6 +1,12 @@
 import { captureException } from '@sentry/core';
 
-import { DEFAULT_FLUSH_MIN_DELAY, REPLAY_SESSION_KEY, VISIBILITY_CHANGE_TIMEOUT, WINDOW } from '../../src/constants';
+import {
+  DEFAULT_FLUSH_MIN_DELAY,
+  REPLAY_SESSION_KEY,
+  VISIBILITY_CHANGE_TIMEOUT,
+  WINDOW,
+  ERROR_CHECKOUT_TIME,
+} from '../../src/constants';
 import type { ReplayContainer } from '../../src/replay';
 import { addEvent } from '../../src/util/addEvent';
 import { PerformanceEntryResource } from '../fixtures/performanceEntry/resource';
@@ -27,6 +33,7 @@ describe('Integration | errorSampleRate', () => {
     ({ mockRecord, domHandler, replay } = await resetSdkMock({
       replayOptions: {
         stickySession: false,
+        useCompression: false,
       },
       sentryOptions: {
         replaysSessionSampleRate: 0.0,
@@ -322,7 +329,7 @@ describe('Integration | errorSampleRate', () => {
   });
 
   it('keeps up to the last two checkout events', async () => {
-    const ELAPSED = 60000;
+    const ELAPSED = ERROR_CHECKOUT_TIME;
     const TEST_EVENT = { data: {}, timestamp: BASE_TIMESTAMP, type: 3 };
     mockRecord._emitter(TEST_EVENT);
     // add a mock performance event
@@ -350,14 +357,13 @@ describe('Integration | errorSampleRate', () => {
     jest.advanceTimersByTime(20);
     await new Promise(process.nextTick);
 
-    expect(replay.session?.started).toBe(BASE_TIMESTAMP + ELAPSED + 20);
+    expect(replay.session?.started).toBe(BASE_TIMESTAMP);
 
     // Does capture everything from the previous checkout
     expect(replay).toHaveSentReplay({
       recordingPayloadHeader: { segment_id: 0 },
       replayEventPayload: expect.objectContaining({
-        // Make sure the old performance event is thrown out
-        replay_start_timestamp: (BASE_TIMESTAMP + ELAPSED + 20) / 1000,
+        replay_start_timestamp: BASE_TIMESTAMP / 1000,
       }),
       recordingData: JSON.stringify([
         { data: { isCheckout: true }, timestamp: BASE_TIMESTAMP, type: 2 },

@@ -2,9 +2,9 @@ import 'jsdom-worker';
 
 import pako from 'pako';
 
+import { EventBufferProxy } from '../../src/eventBuffer/EventBufferProxy';
 import { createEventBuffer } from './../../src/eventBuffer';
 import { BASE_TIMESTAMP } from './../index';
-import { EventBufferProxy } from '../../src/eventBuffer/EventBufferProxy';
 
 const TEST_EVENT = { data: {}, timestamp: BASE_TIMESTAMP, type: 3 };
 describe('Unit | eventBuffer', () => {
@@ -29,10 +29,33 @@ describe('Unit | eventBuffer', () => {
 
       // Checkout triggers clear
       buffer.clear();
-      buffer.addEvent(TEST_EVENT);
+      buffer.addEvent(TEST_EVENT, true);
       const result = await buffer.finish();
 
       expect(result).toEqual(JSON.stringify([TEST_EVENT]));
+    });
+
+    it('adds multiple checkout events in correct order', async function () {
+      const buffer = createEventBuffer({ useCompression: false });
+
+      buffer.addEvent({ data: { order: 1 }, timestamp: BASE_TIMESTAMP, type: 2 });
+      buffer.addEvent({ data: { order: 2 }, timestamp: BASE_TIMESTAMP, type: 3 });
+      buffer.addEvent({ data: { order: 3 }, timestamp: BASE_TIMESTAMP, type: 3 });
+      buffer.addEvent({ data: { order: 4 }, timestamp: BASE_TIMESTAMP, type: 2 }, true);
+      buffer.addEvent({ data: { order: 5 }, timestamp: BASE_TIMESTAMP, type: 3 });
+      buffer.addEvent({ data: { order: 6 }, timestamp: BASE_TIMESTAMP, type: 3 });
+      buffer.addEvent({ data: { order: 7 }, timestamp: BASE_TIMESTAMP, type: 2 }, true);
+      buffer.addEvent({ data: { order: 8 }, timestamp: BASE_TIMESTAMP, type: 3 });
+
+      expect(buffer.pendingEvents.map(event => (event as { data: { order: number } }).data.order)).toEqual([
+        1, 2, 3, 4, 5, 6, 7, 8,
+      ]);
+      expect(buffer.pendingLength).toEqual(8);
+
+      buffer.clear(true);
+
+      expect(buffer.pendingEvents.map(event => (event as { data: { order: number } }).data.order)).toEqual([7, 8]);
+      expect(buffer.pendingLength).toEqual(2);
     });
 
     it('calling `finish()` multiple times does not result in duplicated events', async function () {
@@ -84,18 +107,112 @@ describe('Unit | eventBuffer', () => {
       // Ensure worker is ready
       await buffer['_ensureWorkerIsLoaded']();
 
-      await buffer.addEvent(TEST_EVENT);
-      await buffer.addEvent(TEST_EVENT);
+      buffer.addEvent(TEST_EVENT);
+      buffer.addEvent(TEST_EVENT);
 
       // Checkout triggers clear
-      await buffer.clear();
-      await buffer.addEvent({ ...TEST_EVENT, type: 2 });
+      buffer.clear();
+      buffer.addEvent({ ...TEST_EVENT, type: 2 }), true;
 
       const result = await buffer.finish();
       expect(result).toBeInstanceOf(Uint8Array);
       const restored = pako.inflate(result as Uint8Array, { to: 'string' });
 
       expect(restored).toEqual(JSON.stringify([{ ...TEST_EVENT, type: 2 }]));
+    });
+
+    it('adds multiple checkout events in correct order', async function () {
+      const buffer = createEventBuffer({
+        useCompression: true,
+      }) as EventBufferProxy;
+
+      expect(buffer).toBeInstanceOf(EventBufferProxy);
+
+      // Ensure worker is ready
+      await buffer['_ensureWorkerIsLoaded']();
+
+      buffer.addEvent({ data: { order: 1 }, timestamp: BASE_TIMESTAMP, type: 2 });
+      buffer.addEvent({ data: { order: 2 }, timestamp: BASE_TIMESTAMP, type: 3 });
+      buffer.addEvent({ data: { order: 3 }, timestamp: BASE_TIMESTAMP, type: 3 });
+      buffer.addEvent({ data: { order: 4 }, timestamp: BASE_TIMESTAMP, type: 2 }, true);
+      buffer.addEvent({ data: { order: 5 }, timestamp: BASE_TIMESTAMP, type: 3 });
+      buffer.addEvent({ data: { order: 6 }, timestamp: BASE_TIMESTAMP, type: 3 });
+      buffer.addEvent({ data: { order: 7 }, timestamp: BASE_TIMESTAMP, type: 2 }, true);
+      buffer.addEvent({ data: { order: 8 }, timestamp: BASE_TIMESTAMP, type: 3 });
+
+      expect(buffer.pendingEvents.map(event => (event as { data: { order: number } }).data.order)).toEqual([
+        1, 2, 3, 4, 5, 6, 7, 8,
+      ]);
+      expect(buffer.pendingLength).toEqual(8);
+
+      const result = await buffer.finish();
+      expect(result).toBeInstanceOf(Uint8Array);
+      const restored = pako.inflate(result as Uint8Array, { to: 'string' });
+
+      const orderList = JSON.parse(restored).map((event: { data: { order: number } }) => event.data.order);
+
+      expect(orderList).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    });
+
+    it('clears with keepLastCheckout=true', async function () {
+      const buffer = createEventBuffer({
+        useCompression: true,
+      }) as EventBufferProxy;
+
+      expect(buffer).toBeInstanceOf(EventBufferProxy);
+
+      // Ensure worker is ready
+      await buffer['_ensureWorkerIsLoaded']();
+
+      buffer.addEvent({ data: { order: 1 }, timestamp: BASE_TIMESTAMP, type: 2 });
+      buffer.addEvent({ data: { order: 2 }, timestamp: BASE_TIMESTAMP, type: 3 });
+      buffer.addEvent({ data: { order: 3 }, timestamp: BASE_TIMESTAMP, type: 3 });
+      buffer.addEvent({ data: { order: 4 }, timestamp: BASE_TIMESTAMP, type: 2 }, true);
+      buffer.addEvent({ data: { order: 5 }, timestamp: BASE_TIMESTAMP, type: 3 });
+      buffer.addEvent({ data: { order: 6 }, timestamp: BASE_TIMESTAMP, type: 3 });
+      buffer.addEvent({ data: { order: 7 }, timestamp: BASE_TIMESTAMP, type: 2 }, true);
+      buffer.addEvent({ data: { order: 8 }, timestamp: BASE_TIMESTAMP, type: 3 });
+
+      expect(buffer.pendingEvents.map(event => (event as { data: { order: number } }).data.order)).toEqual([
+        1, 2, 3, 4, 5, 6, 7, 8,
+      ]);
+
+      buffer.clear(true);
+
+      expect(buffer.pendingEvents.map(event => (event as { data: { order: number } }).data.order)).toEqual([7, 8]);
+
+      const result = await buffer.finish();
+      expect(result).toBeInstanceOf(Uint8Array);
+      const restored = pako.inflate(result as Uint8Array, { to: 'string' });
+
+      const orderList = JSON.parse(restored).map((event: { data: { order: number } }) => event.data.order);
+
+      expect(orderList).toEqual([7, 8]);
+    });
+
+    it('handles an error when compressing the payload', async function () {
+      const buffer = createEventBuffer({
+        useCompression: true,
+      }) as EventBufferProxy;
+
+      expect(buffer).toBeInstanceOf(EventBufferProxy);
+
+      // Ensure worker is ready
+      await buffer['_ensureWorkerIsLoaded']();
+
+      buffer.addEvent(TEST_EVENT);
+      buffer.addEvent(TEST_EVENT);
+
+      // @ts-ignore Mock this private so it triggers an error
+      const postMessageSpy = jest.spyOn(buffer._compression, '_postMessage').mockImplementation(() => {
+        return Promise.reject('test worker error');
+      });
+
+      const result = await buffer.finish();
+
+      expect(postMessageSpy).toHaveBeenCalledTimes(1);
+
+      expect(result).toEqual(JSON.stringify([TEST_EVENT, TEST_EVENT]));
     });
 
     it('calling `finish()` multiple times does not result in duplicated events', async function () {

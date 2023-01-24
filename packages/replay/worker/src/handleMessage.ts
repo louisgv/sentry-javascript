@@ -1,33 +1,19 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-import { Compressor } from './Compressor';
-
-const compressor = new Compressor();
+import { compress } from './compress';
 
 interface Handlers {
-  init: () => void;
-  addEvent: (data: Record<string, unknown>) => void;
-  finish: () => void;
+  compress: (data: Record<string, unknown>[]) => void;
 }
 
 const handlers: Handlers = {
-  init: () => {
-    compressor.init();
-    return '';
-  },
-
-  addEvent: (data: Record<string, unknown>) => {
-    return compressor.addEvent(data);
-  },
-
-  finish: () => {
-    return compressor.finish();
+  compress: (data: Record<string, unknown>[]) => {
+    return compress(data);
   },
 };
 
 export function handleMessage(e: MessageEvent): void {
-  const method = e.data.method as string;
-  const id = e.data.id as number;
-  const [data] = e.data.args ? JSON.parse(e.data.args) : [];
+  const eventData = e.data as unknown as { method: string; id: number; args: string };
+  const { method, id, args } = eventData;
+  const [data] = args ? JSON.parse(args) : [];
 
   // @ts-ignore this syntax is actually fine
   if (method in handlers && typeof handlers[method] === 'function') {
@@ -47,7 +33,7 @@ export function handleMessage(e: MessageEvent): void {
         id,
         method,
         success: false,
-        response: err.message,
+        response: (err as Error).message,
       });
 
       // eslint-disable-next-line no-console

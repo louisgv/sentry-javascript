@@ -5,13 +5,18 @@ import type { RateLimits } from '@sentry/utils';
 import { disabledUntil, logger } from '@sentry/utils';
 import { EventType, record } from 'rrweb';
 
-import { MAX_SESSION_LIFE, SESSION_IDLE_DURATION, VISIBILITY_CHANGE_TIMEOUT, WINDOW } from './constants';
+import {
+  MAX_SESSION_LIFE,
+  SESSION_IDLE_DURATION,
+  VISIBILITY_CHANGE_TIMEOUT,
+  WINDOW,
+  ERROR_CHECKOUT_TIME,
+} from './constants';
 import { setupPerformanceObserver } from './coreHandlers/performanceObserver';
 import { createEventBuffer } from './eventBuffer';
 import { getSession } from './session/getSession';
 import { saveSession } from './session/saveSession';
 import type {
-  AddEventResult,
   AddUpdateCallback,
   AllPerformanceEntry,
   EventBuffer,
@@ -196,7 +201,7 @@ export class ReplayContainer implements ReplayContainerInterface {
         // When running in error sampling mode, we need to overwrite `checkoutEveryNms`
         // Without this, it would record forever, until an error happens, which we don't want
         // instead, we'll always keep the last 60 seconds of replay before an error happened
-        ...(this.recordingMode === 'error' && { checkoutEveryNms: 60000 }),
+        ...(this.recordingMode === 'error' && { checkoutEveryNms: ERROR_CHECKOUT_TIME }),
         emit: this._handleRecordingEmit,
       });
     } catch (err) {
@@ -678,12 +683,12 @@ export class ReplayContainer implements ReplayContainerInterface {
    * Observed performance events are added to `this.performanceEvents`. These
    * are included in the replay event before it is finished and sent to Sentry.
    */
-  private _addPerformanceEntries(): Promise<Array<AddEventResult | null>> {
+  private _addPerformanceEntries(): void {
     // Copy and reset entries before processing
     const entries = [...this.performanceEvents];
     this.performanceEvents = [];
 
-    return Promise.all(createPerformanceSpans(this, createPerformanceEntries(entries)));
+    createPerformanceSpans(this, createPerformanceEntries(entries));
   }
 
   /**

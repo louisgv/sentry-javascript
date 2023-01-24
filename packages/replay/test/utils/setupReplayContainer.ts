@@ -1,8 +1,8 @@
-import { ReplayContainer } from '../../src/replay';
-import { clearSession } from './clearSession';
 import { SESSION_IDLE_DURATION } from '../../src/constants';
 import { createEventBuffer } from '../../src/eventBuffer';
-import { ReplayPluginOptions, RecordingOptions } from '../../src/types';
+import { ReplayContainer } from '../../src/replay';
+import type { RecordingOptions, ReplayPluginOptions } from '../../src/types';
+import { clearSession } from './clearSession';
 
 export function setupReplayContainer({
   options,

@@ -1,44 +1,22 @@
+import type { ReplayRecordingData } from '@sentry/types';
 import { logger } from '@sentry/utils';
 
-import type { AddEventResult, EventBuffer, RecordingEvent, WorkerRequest, WorkerResponse } from '../types';
+import type { RecordingEvent, WorkerRequest, WorkerResponse } from '../types';
+import { EventBufferArray } from './EventBufferArray';
 
 /**
  * Event buffer that uses a web worker to compress events.
  * Exported only for testing.
  */
-export class EventBufferCompressionWorker implements EventBuffer {
-  /**
-   * Keeps track of the list of events since the last flush that have not been compressed.
-   * For example, page is reloaded and a flush attempt is made, but
-   * `finish()` (and thus the flush), does not complete.
-   */
-  public _pendingEvents: RecordingEvent[];
-
+export class EventBufferCompressionWorker extends EventBufferArray {
   private _worker: Worker;
-  private _eventBufferItemLength: number = 0;
+
   private _id: number = 0;
 
   public constructor(worker: Worker) {
+    super();
     this._worker = worker;
-    this._pendingEvents = [];
   }
-
-  /**
-   * The number of raw events that are buffered. This may not be the same as
-   * the number of events that have been compresed in the worker because
-   * `addEvent` is async.
-   */
-  public get pendingLength(): number {
-    return this._eventBufferItemLength;
-  }
-
-  /**
-   * Returns a list of the raw recording events that are being compressed.
-   */
-  public get pendingEvents(): RecordingEvent[] {
-    return this._pendingEvents;
-  }
-
   /**
    * Ensure the worker is ready (or not).
    * This will either resolve when the worker is ready, or reject if an error occured.
@@ -67,55 +45,27 @@ export class EventBufferCompressionWorker implements EventBuffer {
     });
   }
 
-  /**
-   * Destroy the event buffer.
-   */
+  /** @inheritdoc */
   public destroy(): void {
     __DEBUG_BUILD__ && logger.log('[Replay] Destroying compression worker');
     this._worker.terminate();
-  }
-
-  /**
-   * Add an event to the event buffer.
-   *
-   * Returns true if event was successfuly received and processed by worker.
-   */
-  public addEvent(event: RecordingEvent): Promise<AddEventResult> {
-    this.pendingEvents.push(event);
-    return this._sendEventToWorker(event);
-  }
-
-  /** @inheritdoc */
-  public clear(untilPos?: number): Promise<void> {
-    this._clear(untilPos);
-
-    // TODO FN: Clear up to pos
-
-    // This will clear the queue of events that are waiting to be compressed
-    return this._postMessage({
-      id: this._getAndIncrementId(),
-      method: 'init',
-      args: [],
-    });
+    super.destroy();
   }
 
   /**
    * Finish the event buffer and return the compressed data.
    */
-  public finish(): Promise<Uint8Array> {
-    this._clear();
+  public async finish(): Promise<ReplayRecordingData> {
+    const pendingEvents = this.pendingEvents.slice();
 
-    return this._finishRequest(this._getAndIncrementId());
-  }
+    this.clear();
 
-  /**
-   * Clear all pending events up to the given event pos.
-   */
-  private _clear(untilPos?: number): void {
-    if (untilPos) {
-      this._pendingEvents.splice(0, untilPos);
-    } else {
-      this._pendingEvents = [];
+    try {
+      return await this._compressEvents(this._getAndIncrementId(), pendingEvents);
+    } catch (error) {
+      __DEBUG_BUILD__ && logger.error('[Replay] Error when trying to compress events', error);
+      // fall back to uncompressed
+      return this._finishRecording(pendingEvents);
     }
   }
 
@@ -166,35 +116,10 @@ export class EventBufferCompressionWorker implements EventBuffer {
   }
 
   /**
-   * Send the event to the worker.
-   */
-  private async _sendEventToWorker(event: RecordingEvent): Promise<AddEventResult> {
-    const promise = this._postMessage<void>({
-      id: this._getAndIncrementId(),
-      method: 'addEvent',
-      args: [event],
-    });
-
-    // XXX: See note in `get length()`
-    this._eventBufferItemLength++;
-
-    return promise;
-  }
-
-  /**
    * Finish the request and return the compressed data from the worker.
    */
-  private async _finishRequest(id: number): Promise<Uint8Array> {
-    const promise = this._postMessage<Uint8Array>({ id, method: 'finish', args: [] });
-
-    // XXX: See note in `get length()`
-    this._eventBufferItemLength = 0;
-
-    await promise;
-
-    this._pendingEvents = [];
-
-    return promise;
+  private async _compressEvents(id: number, events: RecordingEvent[]): Promise<Uint8Array> {
+    return this._postMessage<Uint8Array>({ id, method: 'compress', args: [events] });
   }
 
   /** Get the current ID and increment it for the next call. */
