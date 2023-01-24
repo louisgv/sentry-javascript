@@ -83,7 +83,7 @@ describe('Unit | eventBuffer', () => {
       expect(buffer).toBeInstanceOf(EventBufferProxy);
 
       // Ensure worker is ready
-      await buffer['_ensureWorkerIsLoaded']();
+      await buffer.ensureWorkerIsLoaded();
 
       buffer.addEvent(TEST_EVENT);
       buffer.addEvent(TEST_EVENT);
@@ -105,7 +105,7 @@ describe('Unit | eventBuffer', () => {
       expect(buffer).toBeInstanceOf(EventBufferProxy);
 
       // Ensure worker is ready
-      await buffer['_ensureWorkerIsLoaded']();
+      await buffer.ensureWorkerIsLoaded();
 
       buffer.addEvent(TEST_EVENT);
       buffer.addEvent(TEST_EVENT);
@@ -129,7 +129,7 @@ describe('Unit | eventBuffer', () => {
       expect(buffer).toBeInstanceOf(EventBufferProxy);
 
       // Ensure worker is ready
-      await buffer['_ensureWorkerIsLoaded']();
+      await buffer.ensureWorkerIsLoaded();
 
       buffer.addEvent({ data: { order: 1 }, timestamp: BASE_TIMESTAMP, type: 2 });
       buffer.addEvent({ data: { order: 2 }, timestamp: BASE_TIMESTAMP, type: 3 });
@@ -162,7 +162,7 @@ describe('Unit | eventBuffer', () => {
       expect(buffer).toBeInstanceOf(EventBufferProxy);
 
       // Ensure worker is ready
-      await buffer['_ensureWorkerIsLoaded']();
+      await buffer.ensureWorkerIsLoaded();
 
       buffer.addEvent({ data: { order: 1 }, timestamp: BASE_TIMESTAMP, type: 2 });
       buffer.addEvent({ data: { order: 2 }, timestamp: BASE_TIMESTAMP, type: 3 });
@@ -198,7 +198,7 @@ describe('Unit | eventBuffer', () => {
       expect(buffer).toBeInstanceOf(EventBufferProxy);
 
       // Ensure worker is ready
-      await buffer['_ensureWorkerIsLoaded']();
+      await buffer.ensureWorkerIsLoaded();
 
       buffer.addEvent(TEST_EVENT);
       buffer.addEvent(TEST_EVENT);
@@ -223,7 +223,7 @@ describe('Unit | eventBuffer', () => {
       expect(buffer).toBeInstanceOf(EventBufferProxy);
 
       // Ensure worker is ready
-      await buffer['_ensureWorkerIsLoaded']();
+      await buffer.ensureWorkerIsLoaded();
 
       buffer.addEvent(TEST_EVENT);
 
@@ -247,7 +247,7 @@ describe('Unit | eventBuffer', () => {
       expect(buffer).toBeInstanceOf(EventBufferProxy);
 
       // Ensure worker is ready
-      await buffer['_ensureWorkerIsLoaded']();
+      await buffer.ensureWorkerIsLoaded();
 
       buffer.addEvent(TEST_EVENT);
 
@@ -297,7 +297,7 @@ describe('Unit | eventBuffer', () => {
       expect(result).toEqual(JSON.stringify([TEST_EVENT, TEST_EVENT]));
 
       // Now actually finish loading the worker
-      await buffer['_ensureWorkerIsLoaded']();
+      await buffer.ensureWorkerIsLoaded();
 
       buffer.addEvent(TEST_EVENT);
       buffer.addEvent(TEST_EVENT);
@@ -331,7 +331,7 @@ describe('Unit | eventBuffer', () => {
       expect(result).toEqual(JSON.stringify([TEST_EVENT, TEST_EVENT]));
 
       // Now actually finish loading the worker - which triggers an error
-      await buffer['_ensureWorkerIsLoaded']();
+      await buffer.ensureWorkerIsLoaded();
 
       buffer.addEvent(TEST_EVENT);
       buffer.addEvent(TEST_EVENT);
