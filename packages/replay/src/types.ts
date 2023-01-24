@@ -24,7 +24,7 @@ export interface SendReplayData {
 export interface WorkerRequest {
   id: number;
   method: string;
-  args: unknown[];
+  arg: string;
 }
 
 // PerformancePaintTiming and PerformanceNavigationTiming are only available with TS 4.4 and newer

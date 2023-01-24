@@ -72,7 +72,7 @@ export class EventBufferCompressionWorker extends EventBufferArray {
   /**
    * Post message to worker and wait for response before resolving promise.
    */
-  private _postMessage<T>({ id, method, args }: WorkerRequest): Promise<T> {
+  private _postMessage<T>({ id, method, arg }: WorkerRequest): Promise<T> {
     return new Promise((resolve, reject) => {
       const listener = ({ data }: MessageEvent): void => {
         const response = data as WorkerResponse;
@@ -100,18 +100,10 @@ export class EventBufferCompressionWorker extends EventBufferArray {
         resolve(response.response as T);
       };
 
-      let stringifiedArgs;
-      try {
-        stringifiedArgs = JSON.stringify(args);
-      } catch (err) {
-        __DEBUG_BUILD__ && logger.error('[Replay] Error when trying to stringify args', err);
-        stringifiedArgs = '[]';
-      }
-
       // Note: we can't use `once` option because it's possible it needs to
       // listen to multiple messages
       this._worker.addEventListener('message', listener);
-      this._worker.postMessage({ id, method, args: stringifiedArgs });
+      this._worker.postMessage({ id, method, arg });
     });
   }
 
@@ -119,7 +111,7 @@ export class EventBufferCompressionWorker extends EventBufferArray {
    * Finish the request and return the compressed data from the worker.
    */
   private async _compressEvents(id: number, events: RecordingEvent[]): Promise<Uint8Array> {
-    return this._postMessage<Uint8Array>({ id, method: 'compress', args: [events] });
+    return this._postMessage<Uint8Array>({ id, method: 'compress', arg: JSON.stringify(events) });
   }
 
   /** Get the current ID and increment it for the next call. */
